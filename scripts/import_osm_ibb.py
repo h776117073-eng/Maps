@@ -9,8 +9,10 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -41,6 +43,13 @@ CSV_FIELDS = [
     "healthcare", "craft", "historic", "public_transport", "railway",
     "lat", "lon", "coordinate_method", "osm_url", "tags_json",
 ]
+
+# Keep all named places and address-bearing objects in the full dataset, but avoid cluttering
+# the map's default POI layer with every suburb or locality.
+POI_TAG_KEYS = {
+    "shop", "amenity", "office", "tourism", "leisure", "healthcare", "craft",
+    "historic", "public_transport", "railway", "government", "emergency", "club",
+}
 
 # Collect mapped points of interest and address-bearing features in the approximate city area.
 # A rectangle can include outskirts and cannot guarantee coverage of the legal city boundary.
@@ -147,6 +156,31 @@ def normalize(element: dict[str, Any]) -> dict[str, Any]:
     row["tags_json"] = json.dumps(tags, ensure_ascii=False, sort_keys=True)
     return row
 
+def normalized_name(value: str) -> str:
+    value = unicodedata.normalize("NFKC", value).casefold()
+    value = re.sub(r"[\u064B-\u065F\u0670\u0640]", "", value)
+    return re.sub(r"[^\w]+", " ", value, flags=re.UNICODE).strip()
+
+def write_geojson(path: Path, items: list[dict[str, Any]], name: str) -> None:
+    features = []
+    for r in items:
+        props = {k: v for k, v in r.items() if k not in {"lat", "lon", "tags"}}
+        props["tags"] = r["tags"]
+        geometry = None if r["lat"] is None or r["lon"] is None else {
+            "type": "Point", "coordinates": [r["lon"], r["lat"]]
+        }
+        features.append({"type": "Feature", "id": f'{r["osm_type"]}/{r["osm_id"]}',
+                         "geometry": geometry, "properties": props})
+    payload = {
+        "type": "FeatureCollection",
+        "name": name,
+        "attribution": "© OpenStreetMap contributors",
+        "licence": "Open Database License (ODbL)",
+        "bbox_south_west_north_east": [SOUTH, WEST, NORTH, EAST],
+        "features": features,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
 def main() -> int:
     if not (SOUTH < NORTH and WEST < EAST):
         print("Invalid Ibb bounds; expected south<north and west<east.", file=sys.stderr)
@@ -161,28 +195,13 @@ def main() -> int:
         unique[key] = record
     records = sorted(unique.values(), key=lambda r: (r["category"], r["name"].casefold(), r["osm_type"], r["osm_id"]))
     located = [r for r in records if r["lat"] is not None and r["lon"] is not None]
+    pois = [r for r in records if any(r["tags"].get(key) for key in POI_TAG_KEYS)]
 
     OUT.mkdir(parents=True, exist_ok=True)
-    features = []
-    for r in records:
-        props = {k: v for k, v in r.items() if k not in {"lat", "lon", "tags"}}
-        props["tags"] = r["tags"]
-        geometry = None if r["lat"] is None or r["lon"] is None else {
-            "type": "Point", "coordinates": [r["lon"], r["lat"]]
-        }
-        features.append({"type": "Feature", "id": f'{r["osm_type"]}/{r["osm_id"]}',
-                         "geometry": geometry, "properties": props})
-    geojson = {
-        "type": "FeatureCollection",
-        "name": "OpenStreetMap mapped features around Ibb, Yemen",
-        "attribution": "© OpenStreetMap contributors",
-        "licence": "Open Database License (ODbL)",
-        "bbox_south_west_north_east": [SOUTH, WEST, NORTH, EAST],
-        "features": features,
-    }
-    (OUT / "openstreetmap_ibb_places.geojson").write_text(
-        json.dumps(geojson, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    write_geojson(OUT / "openstreetmap_ibb_places.geojson", records,
+                  "OpenStreetMap mapped features and address-bearing objects around Ibb, Yemen")
+    write_geojson(OUT / "openstreetmap_ibb_pois.geojson", pois,
+                  "OpenStreetMap establishments and points of interest around Ibb, Yemen")
 
     with (OUT / "openstreetmap_ibb_places.csv").open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, extrasaction="ignore")
@@ -191,6 +210,35 @@ def main() -> int:
             flat = {k: r.get(k, "") for k in CSV_FIELDS}
             flat["tags_json"] = r["tags_json"]
             writer.writerow(flat)
+
+    with (OUT / "openstreetmap_ibb_establishments.csv").open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        for r in pois:
+            flat = {k: r.get(k, "") for k in CSV_FIELDS}
+            flat["tags_json"] = r["tags_json"]
+            writer.writerow(flat)
+
+    # Report repeated normalized names for human review; never auto-delete same-name branches.
+    name_groups: dict[str, list[dict[str, Any]]] = {}
+    for r in records:
+        normalized = normalized_name(r["name"])
+        if normalized:
+            name_groups.setdefault(normalized, []).append(r)
+    duplicate_groups = [(normalized, group) for normalized, group in name_groups.items() if len(group) > 1]
+    with (OUT / "openstreetmap_ibb_duplicate_name_review.csv").open("w", encoding="utf-8-sig", newline="") as handle:
+        fields = ["normalized_name", "name", "object_count", "osm_object_ids", "coordinates", "osm_urls"]
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for normalized, group in sorted(duplicate_groups, key=lambda x: x[0]):
+            writer.writerow({
+                "normalized_name": normalized,
+                "name": group[0]["name"],
+                "object_count": len(group),
+                "osm_object_ids": " | ".join(f'{r["osm_type"]}/{r["osm_id"]}' for r in group),
+                "coordinates": " | ".join(f'{r["lat"]},{r["lon"]}' for r in group),
+                "osm_urls": " | ".join(r["osm_url"] for r in group),
+            })
 
     cats = Counter(r["category"] for r in records)
     types = Counter(r["osm_type"] for r in records)
@@ -210,10 +258,19 @@ def main() -> int:
         "element_count": len(records),
         "located_count": len(located),
         "unlocated_count": len(records) - len(located),
+        "named_count": sum(bool(r["name"]) for r in records),
+        "unnamed_count": sum(not bool(r["name"]) for r in records),
+        "establishments_and_poi_count": len(pois),
+        "records_with_phone": sum(bool(r.get("phone") or r.get("contact:phone")) for r in records),
+        "records_with_address": sum(bool(r.get("address") or any(r["tags"].get(k) for k in ("addr:housenumber", "addr:street", "addr:place", "addr:city"))) for r in records),
+        "records_with_website": sum(bool(r.get("website") or r.get("contact:website")) for r in records),
+        "records_with_opening_hours": sum(bool(r.get("opening_hours")) for r in records),
+        "normalized_duplicate_name_groups_for_review": len(duplicate_groups),
         "counts_by_category": dict(sorted(cats.items())),
         "counts_by_osm_type": dict(sorted(types.items())),
         "source_query": QUERY,
         "verification_notice": "OSM features are not independently verified. Absence from this dataset does not mean a business is absent from Ibb.",
+        "duplicate_review_notice": "Repeated normalized names are listed for manual review; branches are not automatically removed.",
         "google_maps_notice": "No Google Maps content was extracted or included.",
     }
     (OUT / "openstreetmap_ibb_metadata.json").write_text(
@@ -224,9 +281,14 @@ def main() -> int:
         "elements": len(records),
         "located": len(located),
         "categories": dict(sorted(cats.items())),
+        "establishments_and_poi_count": len(pois),
+        "named_count": sum(bool(r["name"]) for r in records),
         "files": [
             "data/openstreetmap_ibb_places.csv",
             "data/openstreetmap_ibb_places.geojson",
+            "data/openstreetmap_ibb_establishments.csv",
+            "data/openstreetmap_ibb_pois.geojson",
+            "data/openstreetmap_ibb_duplicate_name_review.csv",
             "data/openstreetmap_ibb_metadata.json",
         ],
     }, ensure_ascii=False, indent=2))
