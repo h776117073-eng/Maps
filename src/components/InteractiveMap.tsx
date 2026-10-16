@@ -156,7 +156,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const markersGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = markersGroup;
 
-    // Keep open licensed research data as a separate layer; never merge it with the legacy 71 records.
+    // Keep licensed OSM points of interest separate from the legacy 71 records; the full address dataset is downloadable separately.
     const osmGroup = L.layerGroup().addTo(map);
     osmMarkersLayerRef.current = osmGroup;
 
@@ -233,7 +233,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       return;
     }
 
-    fetch('https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_places.geojson', { cache: 'no-cache' })
+    fetch('https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_pois.geojson', { cache: 'no-cache' })
       .then(async response => {
         if (!response.ok) throw new Error('OSM dataset not published yet');
         return response.json();
@@ -463,7 +463,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           {/* Separate open dataset visibility toggle */}
           <button
             onClick={() => setOsmLayerVisible(!osmLayerVisible)}
-            title="إظهار أو إخفاء سجلات OpenStreetMap المفتوحة؛ لا تدمج مع السجلات الـ71 القديمة"
+            title="إظهار أو إخفاء نقاط الاهتمام من OpenStreetMap؛ بيانات العناوين الكاملة متاحة للتنزيل"
             className={`px-2.5 py-2 text-xs font-bold rounded-xl border shadow-lg backdrop-blur-md transition-colors ${osmLayerVisible ? 'bg-sky-600/90 text-white border-sky-400/60' : 'bg-slate-900/90 text-slate-300 border-slate-700/80'}`}
           >
             OSM ({osmDataStatus === 'ready' ? osmFeatureCount : osmDataStatus === 'loading' ? '…' : '—'})
@@ -628,7 +628,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             {viewportStats.centerLat}°N, {viewportStats.centerLng}°E
           </span>
           <span className="text-[10px] text-sky-300" title="طبقة بيانات منفصلة من OpenStreetMap">
-            {osmDataStatus === 'loading' ? 'جاري تحميل بيانات OSM…' : osmDataStatus === 'ready' ? `OSM: ${osmFeatureCount} عنصر • ليست تغطية كاملة` : osmDataStatus === 'empty' ? 'لا توجد عناصر منشورة في ملف OSM' : 'بيانات OSM غير متاحة بعد'}
+            {osmDataStatus === 'loading' ? 'جاري تحميل بيانات OSM…' : osmDataStatus === 'ready' ? `OSM: ${osmFeatureCount} نقطة اهتمام • ليست تغطية كاملة` : osmDataStatus === 'empty' ? 'لا توجد عناصر منشورة في ملف OSM' : 'بيانات OSM غير متاحة بعد'}
           </span>
         </div>
       )}
