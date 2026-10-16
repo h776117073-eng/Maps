@@ -1,0 +1,44 @@
+name: Import Ibb OSM dataset
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/import_osm_ibb.py"
+      - ".github/workflows/import-osm-ibb.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-ibb-osm
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Import OpenStreetMap features
+        run: python scripts/import_osm_ibb.py
+      - name: Commit generated data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/openstreetmap_ibb_places.csv data/openstreetmap_ibb_places.geojson data/openstreetmap_ibb_metadata.json
+          if git diff --cached --quiet; then
+            echo "OSM dataset unchanged; no commit needed."
+          else
+            git commit -m "data: refresh OpenStreetMap Ibb places dataset"
+            git push origin HEAD:main
+          fi
