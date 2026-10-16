@@ -271,18 +271,36 @@ export default function App() {
             <span>- خريطة مفتوحة داخل التطبيق | اللواء الأخضر، اليمن</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <span className="flex items-center gap-1 text-slate-500">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>OpenStreetMap / Leaflet</span>
             </span>
-            <span>&bull;</span>
             <button
               onClick={handleDownloadAllJSON}
               className="text-emerald-400 hover:underline"
+              title="تنزيل السجلات الأصلية الـ71 التي يضمها التطبيق"
             >
-              تنزيل ملف البيانات كاملاً
+              تنزيل السجلات الأصلية (JSON)
             </button>
+            <a
+              href="https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_places.csv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-300 hover:underline"
+              title="تنزيل سجلات OpenStreetMap المفتوحة بصيغة CSV"
+            >
+              تنزيل بيانات OSM (CSV)
+            </a>
+            <a
+              href="https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_places.geojson"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-300 hover:underline"
+              title="تنزيل سجلات OpenStreetMap بصيغة GeoJSON"
+            >
+              تنزيل بيانات الخريطة (GeoJSON)
+            </a>
           </div>
         </div>
       </footer>
