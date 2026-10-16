@@ -29,7 +29,7 @@ export default function App() {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [activeCategorizedTab, setActiveCategorizedTab] = useState<string>('health');
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
-  const [mapEngine, setMapEngine] = useState<'google' | 'leaflet'>('google');
+  const [mapEngine, setMapEngine] = useState<'google' | 'leaflet'>('leaflet');
   const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   // Listen to Google Maps quota exceeded event
@@ -88,7 +88,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif] selection:bg-emerald-500 selection:text-white">
-      {/* Required Google Maps Platform Demo Quota Banner */}
+      {/* Required OpenStreetMap / Leaflet Demo Quota Banner */}
       {quotaExceeded && (
         <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
           <span>
@@ -126,13 +126,13 @@ export default function App() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="font-bold text-base text-white">خريطة Google Maps الحقيقية لمدينة إب (اللواء الأخضر)</h1>
+                    <h1 className="font-bold text-base text-white">الخريطة التفاعلية المفتوحة لمدينة إب</h1>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
                       Google Maps Platform
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    خريطة جوجل الرسمية المباشرة لمدينة إب: استكشاف الشوارع، التضاريس، الأقمار الصناعية، والأماكن الموثقة
+                    خريطة داخل المشروع للشوارع والتضاريس والصور الجوية ونقاط البيانات المحلية؛ لا يلزم فتح صفحة خرائط خارجية
                   </p>
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default function App() {
                     }`}
                   >
                     <MapIcon className="w-3.5 h-3.5 text-blue-300" />
-                    <span>خريطة جوجل الحقيقية</span>
+                    <span>خرائط Google</span>
                   </button>
                   <button
                     onClick={() => setMapEngine('leaflet')}
@@ -160,7 +160,7 @@ export default function App() {
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5 text-amber-300" />
-                    <span>خريطة التضاريس المفتوحة</span>
+                    <span>خريطة OpenStreetMap</span>
                   </button>
                 </div>
               </div>
@@ -268,13 +268,13 @@ export default function App() {
           <div className="flex items-center gap-2">
             <TreePine className="w-4 h-4 text-emerald-400" />
             <span className="font-bold text-slate-200">دليل وخريطة مدينة إب التفاعلية الشاملة</span>
-            <span>- مدعوم بـ Google Maps Platform | اللواء الأخضر، اليمن</span>
+            <span>- خريطة مفتوحة داخل التطبيق | اللواء الأخضر، اليمن</span>
           </div>
 
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 text-slate-500">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Google Maps JavaScript API Vector</span>
+              <span>OpenStreetMap / Leaflet</span>
             </span>
             <span>&bull;</span>
             <button
