@@ -293,6 +293,15 @@ export default function App() {
               تنزيل بيانات OSM (CSV)
             </a>
             <a
+              href="https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_establishments.csv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-300 hover:underline"
+              title="تنزيل المنشآت والخدمات المرسومة في OpenStreetMap"
+            >
+              تنزيل المنشآت والخدمات (CSV)
+            </a>
+            <a
               href="https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_places.geojson"
               target="_blank"
               rel="noopener noreferrer"
