@@ -40,5 +40,8 @@ jobs:
             echo "OSM dataset unchanged; no commit needed."
           else
             git commit -m "data: refresh OpenStreetMap Ibb places dataset"
+            # Rebase the generated-data commit on the latest main in case the app was updated while the import ran.
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
