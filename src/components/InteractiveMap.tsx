@@ -51,6 +51,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const osmMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const measureLineRef = useRef<L.Polyline | null>(null);
 
@@ -68,6 +69,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [measuredDistance, setMeasuredDistance] = useState<number | null>(null);
   const [showPresets, setShowPresets] = useState(false);
   const [radarScannerActive, setRadarScannerActive] = useState(true);
+  const [osmLayerVisible, setOsmLayerVisible] = useState(true);
+  const [osmDataStatus, setOsmDataStatus] = useState<'loading' | 'ready' | 'empty' | 'unavailable'>('loading');
+  const [osmFeatureCount, setOsmFeatureCount] = useState(0);
 
   // Tile URL definitions
   const TILE_PROVIDERS = {
@@ -152,6 +156,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const markersGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = markersGroup;
 
+    // Keep open licensed research data as a separate layer; never merge it with the legacy 71 records.
+    const osmGroup = L.layerGroup().addTo(map);
+    osmMarkersLayerRef.current = osmGroup;
+
     // Update viewport statistics on move/zoom
     const updateStats = () => {
       const center = map.getCenter();
@@ -214,6 +222,84 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Load the separately published OpenStreetMap-derived research dataset, if the importer has produced it.
+  // This layer is separate from the app's original 71 hard-coded seed places.
+  useEffect(() => {
+    let cancelled = false;
+    const group = osmMarkersLayerRef.current;
+    if (!group) {
+      setOsmDataStatus('unavailable');
+      return;
+    }
+
+    fetch('https://raw.githubusercontent.com/h776117073-eng/Maps/main/data/openstreetmap_ibb_places.geojson', { cache: 'no-cache' })
+      .then(async response => {
+        if (!response.ok) throw new Error('OSM dataset not published yet');
+        return response.json();
+      })
+      .then((dataset: { features?: Array<{ geometry?: { type?: string; coordinates?: number[] } | null; properties?: Record<string, any> }> }) => {
+        if (cancelled) return;
+        const features = Array.isArray(dataset.features) ? dataset.features : [];
+        let added = 0;
+        features.forEach(feature => {
+          if (feature.geometry?.type !== 'Point' || !Array.isArray(feature.geometry.coordinates)) return;
+          const [lng, lat] = feature.geometry.coordinates;
+          if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          const props = feature.properties || {};
+          const tags = props.tags && typeof props.tags === 'object' ? props.tags : {};
+          const name = String(props.name || tags['name:ar'] || tags['name:en'] || 'عنصر دون اسم');
+          const popup = document.createElement('div');
+          const title = document.createElement('strong');
+          title.textContent = name;
+          popup.appendChild(title);
+          const category = document.createElement('div');
+          category.textContent = String(props.category || 'عنصر جغرافي من OpenStreetMap');
+          popup.appendChild(category);
+          const address = String(props.address || 'لا يوجد عنوان مفصل مسجل في المصدر');
+          const addressNode = document.createElement('div');
+          addressNode.textContent = address;
+          popup.appendChild(addressNode);
+          const sourceUrl = String(props.osm_url || '');
+          if (sourceUrl.startsWith('https://www.openstreetmap.org/')) {
+            const link = document.createElement('a');
+            link.href = sourceUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'عرض السجل الأصلي على OpenStreetMap';
+            link.style.display = 'block';
+            link.style.marginTop = '6px';
+            popup.appendChild(link);
+          }
+          L.circleMarker([lat, lng], {
+            radius: 5,
+            color: '#38bdf8',
+            weight: 1.5,
+            fillColor: '#0ea5e9',
+            fillOpacity: 0.78,
+          }).bindPopup(popup).bindTooltip(name).addTo(group);
+          added++;
+        });
+        setOsmFeatureCount(added);
+        setOsmDataStatus(added > 0 ? 'ready' : 'empty');
+      })
+      .catch(() => {
+        if (!cancelled) setOsmDataStatus('unavailable');
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const group = osmMarkersLayerRef.current;
+    if (!map || !group) return;
+    if (osmLayerVisible) {
+      if (!map.hasLayer(group)) group.addTo(map);
+    } else if (map.hasLayer(group)) {
+      map.removeLayer(group);
+    }
+  }, [osmLayerVisible]);
 
   // Switch Tile Layer
   const changeTileLayer = (tileType: 'osm' | 'satellite' | 'topo' | 'dark') => {
@@ -374,6 +460,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             )}
           </div>
 
+          {/* Separate open dataset visibility toggle */}
+          <button
+            onClick={() => setOsmLayerVisible(!osmLayerVisible)}
+            title="إظهار أو إخفاء سجلات OpenStreetMap المفتوحة؛ لا تدمج مع السجلات الـ71 القديمة"
+            className={`px-2.5 py-2 text-xs font-bold rounded-xl border shadow-lg backdrop-blur-md transition-colors ${osmLayerVisible ? 'bg-sky-600/90 text-white border-sky-400/60' : 'bg-slate-900/90 text-slate-300 border-slate-700/80'}`}
+          >
+            OSM ({osmDataStatus === 'ready' ? osmFeatureCount : osmDataStatus === 'loading' ? '…' : '—'})
+          </button>
+
           {/* Tile Switcher */}
           <div className="flex bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 shadow-lg">
             <button
@@ -531,6 +626,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <span className="text-slate-500">|</span>
           <span className="font-mono text-[10px] text-slate-400">
             {viewportStats.centerLat}°N, {viewportStats.centerLng}°E
+          </span>
+          <span className="text-[10px] text-sky-300" title="طبقة بيانات منفصلة من OpenStreetMap">
+            {osmDataStatus === 'loading' ? 'جاري تحميل بيانات OSM…' : osmDataStatus === 'ready' ? `OSM: ${osmFeatureCount} عنصر • ليست تغطية كاملة` : osmDataStatus === 'empty' ? 'لا توجد عناصر منشورة في ملف OSM' : 'بيانات OSM غير متاحة بعد'}
           </span>
         </div>
       )}
