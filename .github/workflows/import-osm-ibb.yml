@@ -35,7 +35,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/openstreetmap_ibb_places.csv data/openstreetmap_ibb_places.geojson data/openstreetmap_ibb_metadata.json
+          git add data/openstreetmap_ibb_places.csv data/openstreetmap_ibb_places.geojson data/openstreetmap_ibb_establishments.csv data/openstreetmap_ibb_pois.geojson data/openstreetmap_ibb_duplicate_name_review.csv data/openstreetmap_ibb_metadata.json
           if git diff --cached --quiet; then
             echo "OSM dataset unchanged; no commit needed."
           else
