@@ -60,3 +60,38 @@ Google Maps Platform's terms prohibit scraping/exporting Maps content for use ou
 - `ibb_seed_inventory.csv` — spreadsheet-friendly export of the 71 records already embedded in the repository.
 - `ibb_seed_inventory.json` — JSON export with explicit verification caveats.
 - These files are inventory/export files only, **not** a complete or independently verified list of businesses in Ibb.
+
+
+## Follow-up: open geographic dataset added on 2026-10-16
+
+An OpenStreetMap/Overpass query was executed successfully and the generated files have been committed under data/. This is a **separate, licensed dataset**, not copied from the Google Maps map and not merged into the legacy 71 app records.
+
+| Measure | Retrieved result |
+| --- | ---: |
+| OSM objects in approximate rectangle | 667 |
+| Objects with coordinates | 667 |
+| Named objects | 655 |
+| Unnamed objects | 12 |
+| Establishment/service/point-of-interest layer | 241 |
+| Records with a phone field | 28 |
+| Records with address tags | 98 |
+| Records with a website | 14 |
+| Records with opening hours | 48 |
+| Repeated normalized-name groups to review | 47 |
+
+The rectangle used is south 13.94, west 44.12, north 14.03, east 44.22. It includes named localities and suburbs as well as shops, hotels, health, education, transport, banking, worship and other mapped objects. It is not a confirmed official city boundary, so these counts must not be presented as a complete inventory of all Ibb businesses. Only 241 objects fall into the separate points-of-interest/service layer; many other objects are localities or place labels. Address/contact fields are often absent because OSM data is community-mapped and sparse in this area.
+
+### Generated files
+
+- [All mapped places and address-bearing objects (CSV)](https://github.com/h776117073-eng/Maps/blob/main/data/openstreetmap_ibb_places.csv)
+- [Full dataset (GeoJSON)](https://github.com/h776117073-eng/Maps/blob/main/data/openstreetmap_ibb_places.geojson)
+- [Establishments and services only (CSV)](https://github.com/h776117073-eng/Maps/blob/main/data/openstreetmap_ibb_establishments.csv)
+- [POI layer loaded by the in-project Leaflet map (GeoJSON)](https://github.com/h776117073-eng/Maps/blob/main/data/openstreetmap_ibb_pois.geojson)
+- [Potential repeated names for manual review (CSV)](https://github.com/h776117073-eng/Maps/blob/main/data/openstreetmap_ibb_duplicate_name_review.csv)
+- [Retrieval metadata, counts, bounding box, and full query](https://github.com/h776117073-eng/Maps/blob/main/data/openstreetmap_ibb_metadata.json)
+
+Repeated names were not automatically deleted: two branches of a chain or two localities can legitimately share a name. The duplicate-review CSV preserves OSM IDs, coordinates and source links so uncertain cases can be checked. Every record should still be treated as unverified until independently checked.
+
+The app's default map engine was switched to the in-project Leaflet/OpenStreetMap map. A separate toggle loads the 241-feature POI GeoJSON layer if the file is available; it is intentionally kept apart from the original 71 seed entries. Direct links to the CSV and GeoJSON downloads are provided in the app footer.
+
+**Licence/attribution:** © OpenStreetMap contributors, ODbL — https://www.openstreetmap.org/copyright.
